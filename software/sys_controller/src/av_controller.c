@@ -25,7 +25,6 @@
 #include "altera_avalon_pio_regs.h"
 #include "sysconfig.h"
 #include "utils.h"
-#include "flash.h"
 #include "sys/alt_timestamp.h"
 #include "i2c_opencores.h"
 #include "av_controller.h"
@@ -289,67 +288,6 @@ int init_emif()
     return 0;
 }
 
-int init_sdcard() {
-    int err = mmc_init(mmc_dev);
-
-    if (err != 0 || mmc_dev->has_init == 0) {
-        printf("mmc_init failed: %d\n\n", err);
-        return -1;
-    } else {
-        printf("mmc_init success\n\n");
-
-        printf("Device: %s\n", mmc_dev->name);
-        printf("Manufacturer ID: %x\n", mmc_dev->cid[0] >> 24);
-        printf("OEM: %x\n", (mmc_dev->cid[0] >> 8) & 0xffff);
-        printf("Name: %c%c%c%c%c \n", mmc_dev->cid[0] & 0xff,
-                (mmc_dev->cid[1] >> 24), (mmc_dev->cid[1] >> 16) & 0xff,
-                (mmc_dev->cid[1] >> 8) & 0xff, mmc_dev->cid[1] & 0xff);
-
-        printf("Tran Speed: %d\n", mmc_dev->tran_speed);
-        printf("Rd Block Len: %d\n", mmc_dev->read_bl_len);
-
-        printf("%s version %d.%d\n", IS_SD(mmc_dev) ? "SD" : "MMC",
-                (mmc_dev->version >> 4) & 0xf, mmc_dev->version & 0xf);
-
-        printf("High Capacity: %s\n", mmc_dev->high_capacity ? "Yes" : "No");
-        printf("Capacity: %lu MB\n", mmc_dev->capacity>>20);
-
-        printf("Bus Width: %d-bit\n\n", mmc_dev->bus_width);
-
-        /*printf("attempting to read 1 block\n\r");
-        if (mmc_bread(mmc_dev, 0, BLKCNT, buf) == 0) {
-            printf("mmc_bread failed\n\r");
-            return -1;
-        }
-        printf("mmc_bread success\n\r");
-        for (i=0; i<8; i++)
-            printf("0x%.2x\n", buf[i]);*/
-    }
-
-    return 0;
-}
-
-int check_sdcard() {
-    int ret = 0;
-
-    sys_status = IORD_ALTERA_AVALON_PIO_DATA(PIO_2_BASE);
-    sd_det = !!(sys_status & (1<<SSTAT_SD_DETECT_BIT));
-
-    //init sdcard if detected
-    if (sd_det != sd_det_prev) {
-        if (sd_det) {
-            printf("SD card inserted\n");
-            ret = init_sdcard();
-        } else {
-            printf("SD card ejected\n");
-            mmc_dev->has_init = 0;
-        }
-    }
-
-    sd_det_prev = sd_det;
-
-    return ret;
-}
 
 int init_hw()
 {
@@ -920,8 +858,6 @@ void mainloop()
         adv7513_update_config(&advtx_dev, &cur_avconfig->adv7513_cfg);
 
         pcm186x_update_config(&pcm_dev, &cur_avconfig->pcm_cfg);
-
-        check_sdcard();
 
         usleep(20000);
     }
